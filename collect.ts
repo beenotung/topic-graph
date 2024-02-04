@@ -233,10 +233,44 @@ set to_topic_id = :new_id
 where to_topic_id = :old_id
 `)
 
+let delete_duplicated_to_link = db.prepare(/* sql */ `
+with list1 as (
+  select to_topic_id from link
+  where from_topic_id = :old_id or from_topic_id = :new_id
+  group by to_topic_id
+  having count(id) > 1
+)
+, list2 as (
+  select id from link
+  inner join list1 on list1.to_topic_id = link.to_topic_id
+  where from_topic_id = :old_id
+)
+delete from link where id in (select id from list2)
+`)
+
+let delete_duplicated_from_link = db.prepare(/* sql */ `
+with list1 as (
+  select from_topic_id from link
+  where to_topic_id = :old_id or to_topic_id = :new_id
+  group by from_topic_id
+  having count(id) > 1
+)
+, list2 as (
+  select id from link
+  inner join list1 on list1.from_topic_id = link.from_topic_id
+  where to_topic_id = :old_id
+)
+delete from link where id in (select id from list2)
+`)
+
 let mergeTopic = (from: Topic, to: Topic) => {
+  delete_duplicated_from_link.run({ old_id: from.id, new_id: to.id })
+  delete_duplicated_to_link.run({ old_id: from.id, new_id: to.id })
+
   update_slug.run({ old_id: from.id, new_id: to.id })
   update_from_link.run({ old_id: from.id, new_id: to.id })
   update_to_link.run({ old_id: from.id, new_id: to.id })
+
   delete proxy.topic[from.id!]
 }
 mergeTopic = db.transaction(mergeTopic)
