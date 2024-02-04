@@ -28,6 +28,7 @@ export type Link = {
   from_topic?: Topic
   to_topic_id: number
   to_topic?: Topic
+  text: string
   navigation_not_searchable: boolean
 }
 

@@ -22,6 +22,7 @@ type Task = {
 type Link = {
   title: string
   slug: string
+  text: string
   navigation_not_searchable: boolean
 }
 
@@ -101,15 +102,21 @@ async function collectTopic(page: Page, task: Task) {
         document.querySelectorAll<HTMLAnchorElement>(
           '#bodyContent a[href*="/wiki/"][title]',
         ),
-        a => ({
-          slug: a
-            .getAttribute('href')
-            ?.match(/^\/wiki\/(.*)$/)?.[1]
-            .split('#')[0]!,
-          title: a.title,
-          navigation_not_searchable: !!a.closest('.navigation-not-searchable'),
-        }),
-      )
+        a => {
+          return {
+            slug: a
+              .getAttribute('href')
+              ?.match(/^\/wiki\/(.*)$/)?.[1]
+              .split('#')[0]!,
+            title: a.title,
+            text: a.innerText,
+            rect: a.getBoundingClientRect(),
+            navigation_not_searchable: !!a.closest(
+              '.navigation-not-searchable',
+            ),
+          }
+        },
+      ).filter(link => link.rect.width * link.rect.height > 0)
       if (links.some(link => link.slug == 'Wikipedia:Project_namespace')) {
         throw new Error(`unexpected link, task.slug: ${slug}`)
       }
@@ -139,10 +146,6 @@ async function collectTopic(page: Page, task: Task) {
     { slug: slug },
   )
   let redirected_slug = href.replace(url_prefix, '').split('#')[0]
-  if (redirected_slug != slug) {
-    cli.update(`topic slug redirected: "${slug}" -> "${redirected_slug}"`)
-    cli.nextLine()
-  }
   return { links, redirected_slug }
 }
 
@@ -208,6 +211,7 @@ let storeTopic = (
       proxy.link.push({
         from_topic_id: from_topic.id!,
         to_topic_id: to_topic.id!,
+        text: link.text,
         navigation_not_searchable: link.navigation_not_searchable,
       })
   }
@@ -267,6 +271,9 @@ delete from link where id in (select id from list2)
 `)
 
 let mergeTopic = (from: Topic, to: Topic) => {
+  cli.update(`merge topic "${from.title}" -> "${to.title}"`)
+  cli.nextLine()
+
   delete_duplicated_from_link.run({ old_id: from.id, new_id: to.id })
   delete_duplicated_to_link.run({ old_id: from.id, new_id: to.id })
 

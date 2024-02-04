@@ -41,6 +41,7 @@ link
 id integer PK
 from_topic_id integer FK >0- topic.id
 to_topic_id integer FK >0- topic.id
+text text
 navigation_not_searchable boolean
 
 

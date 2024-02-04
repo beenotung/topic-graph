@@ -1,5 +1,5 @@
 import { filter, find } from 'better-sqlite3-proxy'
-import { Topic, proxy } from './proxy'
+import { Link, Topic, proxy } from './proxy'
 import { db } from './db'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
 
@@ -30,6 +30,11 @@ function findTopic(title: string) {
   return proxy.topic[id]
 }
 
+type Path = {
+  topic: Topic
+  link: Link | null
+}
+
 function findPath(options: {
   from: Topic
   to: Topic
@@ -37,13 +42,13 @@ function findPath(options: {
 }): {
   searched: number
   steps: number
-  paths: Topic[][]
+  paths: Path[][]
 } {
   let { from, to, include_navigation_not_searchable } = options
   let searched = 0
-  let paths: Topic[][] = []
+  let paths: Path[][] = []
   if (from.id == to.id) {
-    paths.push([from])
+    paths.push([{ topic: from, link: null }])
     return {
       searched,
       steps: 1,
@@ -51,10 +56,12 @@ function findPath(options: {
     }
   }
   type Item = {
-    path: Topic[]
+    path: Path[]
     ids: Set<number> // to avoid loop
   }
-  let stack: Item[] = [{ path: [from], ids: new Set([from.id!]) }]
+  let stack: Item[] = [
+    { path: [{ topic: from, link: null }], ids: new Set([from.id!]) },
+  ]
   let final_to_topic_id = to.id!
   let cli = new ProgressCli()
   let found_depth = 0
@@ -83,7 +90,7 @@ function findPath(options: {
       }
     }
     searched++
-    let from_topic = path[item.path.length - 1]
+    let from_topic = path[path.length - 1].topic
     if (!from_topic.collect_time) {
       continue
       // throw new Error('topic not collected: ' + from_topic.title)
@@ -104,14 +111,14 @@ function findPath(options: {
         if (!found_depth) {
           found_depth = path.length + 1
         }
-        paths.push([...path, to_topic])
+        paths.push([...path, { topic: to_topic, link }])
         break
       }
       if (ids.has(to_topic_id)) continue
       let new_ids = new Set(ids)
       new_ids.add(to_topic_id)
       stack.push({
-        path: [...path, to_topic],
+        path: [...path, { topic: to_topic, link }],
         ids: new_ids,
       })
     }
@@ -132,6 +139,8 @@ function test() {
   let to = 'Artificial intelligence'
   to = 'Design prototyping'
   // to = 'Great_man_theory'
+  // to = 'Digital marketing'
+  // to = 'Subset'
   let result = findPath({
     from: findTopic(from),
     to: findTopic(to),
@@ -143,7 +152,17 @@ function test() {
     paths: result.paths.length,
   })
   result.paths.forEach((path, i) => {
-    console.log(i + 1 + ':', path.map(topic => topic.title).join(' -> '))
+    console.log(
+      i + 1 + ':',
+      path
+        .map(item =>
+          !item.link ||
+          item.link.text.toLowerCase() == item.topic.title.toLowerCase()
+            ? item.topic.title
+            : `${item.topic.title} (${item.link.text})`,
+        )
+        .join(' -> '),
+    )
   })
 }
 test()
