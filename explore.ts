@@ -30,9 +30,23 @@ function findTopic(title: string) {
   return proxy.topic[id]
 }
 
-function findPath(from: Topic, to: Topic): Topic[] {
+function findPath(
+  from: Topic,
+  to: Topic,
+): {
+  searched: number
+  steps: number
+  paths: Topic[][]
+} {
+  let searched = 0
+  let paths: Topic[][] = []
   if (from.id == to.id) {
-    return [from]
+    paths.push([from])
+    return {
+      searched,
+      steps: 1,
+      paths,
+    }
   }
   type Item = {
     path: Topic[]
@@ -41,11 +55,32 @@ function findPath(from: Topic, to: Topic): Topic[] {
   let stack: Item[] = [{ path: [from], ids: new Set([from.id!]) }]
   let final_to_topic_id = to.id!
   let cli = new ProgressCli()
+  let found_depth = 0
+  let next_searched = searched * 1.1
   for (;;) {
-    cli.update(`stack: ${stack.length.toLocaleString()}`)
     let item = stack.shift()
     if (!item) break
     let { path, ids } = item
+    if (found_depth && path.length + 1 > found_depth) {
+      break
+    }
+    if (searched >= next_searched) {
+      next_searched = searched * 1.1
+      let msg =
+        `searched: ${searched.toLocaleString()}` +
+        ` | stack: ${stack.length.toLocaleString()}` +
+        ` | depth: ${path.length + 1}`
+      if (found_depth) {
+        msg += ` | found ${paths.length} paths`
+      }
+      cli.update(msg)
+
+      // FIXME speed up to allow retrieving all paths
+      if (found_depth > 3 && searched > 10000) {
+        break
+      }
+    }
+    searched++
     let from_topic = path[item.path.length - 1]
     if (!from_topic.collect_time) {
       continue
@@ -60,8 +95,11 @@ function findPath(from: Topic, to: Topic): Topic[] {
       let to_topic_id = link.to_topic_id
       let to_topic = link.to_topic!
       if (to_topic_id == final_to_topic_id) {
-        cli.update('')
-        return [...path, to_topic]
+        if (!found_depth) {
+          found_depth = path.length + 1
+        }
+        paths.push([...path, to_topic])
+        break
       }
       if (ids.has(to_topic_id)) continue
       let new_ids = new Set(ids)
@@ -72,19 +110,30 @@ function findPath(from: Topic, to: Topic): Topic[] {
       })
     }
   }
+  cli.update('')
+  if (found_depth) {
+    return {
+      searched,
+      steps: found_depth,
+      paths,
+    }
+  }
   throw new Error(`no path between "${from.title}" and "${to.title}"`)
 }
 
 function test() {
   let from = 'TypeScript'
   let to = 'Artificial intelligence'
-  let path = findPath(findTopic(from), findTopic(to))
-  console.log(
-    path.map(topic => ({
-      id: topic.id,
-      title: topic.title,
-      slug: find(proxy.topic_slug, { topic_id: topic.id! }),
-    })),
-  )
+  to = 'Design prototyping'
+  // to = 'Great_man_theory'
+  let result = findPath(findTopic(from), findTopic(to))
+  console.log({
+    searched: result.searched,
+    steps: result.steps,
+    paths: result.paths.length,
+  })
+  result.paths.forEach((path, i) => {
+    console.log(i + 1 + ':', path.map(topic => topic.title).join(' -> '))
+  })
 }
 test()
