@@ -1,6 +1,6 @@
 import { Page, chromium } from 'playwright'
 import { Topic, proxy } from './proxy'
-import { filter, find, unProxy } from 'better-sqlite3-proxy'
+import { count, filter, find, notNull, unProxy } from 'better-sqlite3-proxy'
 import { db } from './db'
 import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
@@ -51,9 +51,14 @@ async function main() {
     }
     let new_topics = storeTopic(lang_id, topic, links)
     stack.push(...new_topics)
+    let collected = count(proxy.topic, { collect_time: notNull })
+    let pending = stack.length
+    let progress = (collected / (collected + pending)) * 100
     cli.update(
       `uptime: ${format_time_duration(process.uptime() * 1000)}` +
-        ` | stack: ${stack.length.toLocaleString()}` +
+        ` | collected: ${collected.toLocaleString()}` +
+        ` | pending: ${pending.toLocaleString()}` +
+        ` | progress: ${progress.toFixed(2)}%` +
         ` | ${links.length.toLocaleString()} links` +
         ` in topic: "${topic.title}"`,
     )
