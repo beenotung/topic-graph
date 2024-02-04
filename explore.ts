@@ -77,7 +77,7 @@ function test() {
     path.map(topic => ({
       id: topic.id,
       title: topic.title,
-      slug: topic.slug,
+      slug: find(proxy.topic_slug, { topic_id: topic.id! }),
     })),
   )
 }

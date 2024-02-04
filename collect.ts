@@ -13,8 +13,9 @@ type Task = {
   title: string
 }
 
+let cli = new ProgressCli()
+
 async function main() {
-  let cli = new ProgressCli()
   let browser = await chromium.launch({ headless: true })
   let page = await browser.newPage()
 
@@ -22,13 +23,15 @@ async function main() {
     find(proxy.lang, { slug: 'en' })?.id ||
     proxy.lang.push({ slug: 'en', name: 'English' })
 
-  find(proxy.topic, { slug: 'TypeScript', lang_id }) ||
-    proxy.topic.push({
-      slug: 'TypeScript',
+  let seedTopic = findTopicBySlug('TypeScript')
+  if (!seedTopic) {
+    let topic_id = proxy.topic.push({
       title: 'TypeScript',
       lang_id,
       collect_time: null,
     })
+    proxy.topic_slug.push({ topic_id, slug: 'TypeScript' })
+  }
 
   let stack: Topic[] = filter(proxy.topic, { lang_id, collect_time: null })
 
@@ -42,14 +45,16 @@ async function main() {
     if (diff < collect_interval) {
       await later(collect_interval - diff)
     }
-    let links = await collectTopic(page, topic)
+    let slug = find(proxy.topic_slug, { topic_id: topic.id! })?.slug
+    if (!slug) throw new Error('topic slug not found, title: ' + topic.title)
+    let { links, redirected_slug } = await collectTopic(page, slug)
     lastTime = Date.now()
     if (links.length == 0) {
       cli.nextLine()
       console.error('Error: no links found, topic:', unProxy(topic))
       throw new Error('no links found')
     }
-    let new_topics = storeTopic(lang_id, topic, links)
+    let new_topics = storeTopic(lang_id, topic, redirected_slug, links)
     stack.push(...new_topics)
     let collected = count(proxy.topic, { collect_time: notNull })
     let pending = stack.length
@@ -68,10 +73,11 @@ async function main() {
   await browser.close()
 }
 
-async function collectTopic(page: Page, task: Task) {
-  let url = 'https://en.wikipedia.org/wiki/' + task.slug
+async function collectTopic(page: Page, slug: string) {
+  let url_prefix = 'https://en.wikipedia.org/wiki/'
+  let url = url_prefix + slug
   await page.goto(url)
-  let topics = await page.evaluate(
+  let { links, href } = await page.evaluate(
     ({ slug }) => {
       let links = Array.from(
         document.querySelectorAll<HTMLAnchorElement>(
@@ -88,7 +94,7 @@ async function collectTopic(page: Page, task: Task) {
       if (links.some(link => link.slug == 'Wikipedia:Project_namespace')) {
         throw new Error(`unexpected link, task.slug: ${slug}`)
       }
-      return links.filter(
+      links = links.filter(
         link =>
           link.slug &&
           !(
@@ -109,31 +115,45 @@ async function collectTopic(page: Page, task: Task) {
             link.slug.startsWith('Special:')
           ),
       )
+      return { links, href: location.href }
     },
-    { slug: task.slug },
+    { slug: slug },
   )
-  return topics
+  let redirected_slug = href.replace(url_prefix, '').split('#')[0]
+  if (redirected_slug != slug) {
+    cli.nextLine()
+    cli.writeln(`topic slug redirected: "${slug}" -> "${redirected_slug}"`)
+  }
+  return { links, redirected_slug }
 }
 
-let storeTopic = (lang_id: number, topic: Topic, links: Task[]) => {
+function findTopicBySlug(slug: string) {
+  return find(proxy.topic_slug, { slug })?.topic
+}
+
+let storeTopic = (
+  lang_id: number,
+  topic: Topic,
+  redirected_slug: string,
+  links: Task[],
+) => {
   let from_topic_id = topic.id!
   topic.collect_time = Date.now()
+  find(proxy.topic_slug, { topic_id: from_topic_id, slug: redirected_slug }) ||
+    proxy.topic_slug.push({ topic_id: from_topic_id, slug: redirected_slug })
   let new_topics: Topic[] = []
   for (let link of links) {
-    let to_topic = find(proxy.topic, {
-      slug: link.slug,
-      lang_id,
-    })
+    let to_topic = findTopicBySlug(link.slug)
     if (to_topic) {
       proxy.link.push({ from_topic_id, to_topic_id: to_topic.id! })
       continue
     }
     let to_topic_id = proxy.topic.push({
-      slug: link.slug,
       title: link.title,
       lang_id,
       collect_time: null,
     })
+    proxy.topic_slug.push({ topic_id: to_topic_id, slug: link.slug })
     to_topic = proxy.topic[to_topic_id]
     new_topics.push(to_topic)
     proxy.link.push({ from_topic_id, to_topic_id })

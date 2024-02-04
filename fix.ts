@@ -9,13 +9,18 @@ let timer = startTimer('init')
 let select_ids = db
   .prepare(
     /* sql */
-    `select id from topic where slug like '${prefix}:%'`,
+    `select topic_id from topic_slug where slug like '${prefix}:%'`,
   )
   .pluck()
 
 let delete_link = db.prepare(
   /* sql */
   `delete from link where from_topic_id = :id or to_topic_id = :id`,
+)
+
+let delete_topic_slug = db.prepare(
+  /* sql */
+  `delete from topic_slug where topic_id = :id`,
 )
 
 let delete_sequence = db.prepare(
@@ -25,6 +30,7 @@ let delete_sequence = db.prepare(
 
 function removeTopic(id: number) {
   delete_link.run({ id })
+  delete_topic_slug.run({ id })
   delete proxy.topic[id]
 }
 

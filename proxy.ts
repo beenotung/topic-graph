@@ -9,11 +9,17 @@ export type Lang = {
 
 export type Topic = {
   id?: null | number
-  slug: string
   title: string
   lang_id: number
   lang?: Lang
   collect_time: null | number
+}
+
+export type TopicSlug = {
+  id?: null | number
+  topic_id: number
+  topic?: Topic
+  slug: string
 }
 
 export type Link = {
@@ -27,6 +33,7 @@ export type Link = {
 export type DBProxy = {
   lang: Lang[]
   topic: Topic[]
+  topic_slug: TopicSlug[]
   link: Link[]
 }
 
@@ -37,6 +44,10 @@ export let proxy = proxySchema<DBProxy>({
     topic: [
       /* foreign references */
       ['lang', { field: 'lang_id', table: 'lang' }],
+    ],
+    topic_slug: [
+      /* foreign references */
+      ['topic', { field: 'topic_id', table: 'topic' }],
     ],
     link: [
       /* foreign references */

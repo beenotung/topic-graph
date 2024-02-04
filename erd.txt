@@ -25,10 +25,15 @@ name text
 topic
 -----
 id integer PK
-slug text unique
 title text
 lang_id integer FK >0- lang.id
 collect_time integer NULL
+
+topic_slug
+----------------
+id
+topic_id fk
+slug text unique
 
 
 link
@@ -46,6 +51,7 @@ to_topic_id integer FK >0- topic.id
 # diagram-text: #000000
 # table-bg: #ffffff
 # table-text: #000000
-# lang (130, 281)
-# topic (384, 226)
-# link (718, 183)
+# lang (122, 278)
+# topic (381, 142)
+# link (742, 100)
+# topic_slug (86, 32)
