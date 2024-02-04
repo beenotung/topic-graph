@@ -49,11 +49,8 @@ async function main() {
       console.error('Error: no links found, topic:', unProxy(topic))
       throw new Error('no links found')
     }
-    let to_topics = storeTopic(lang_id, topic, links)
-    for (let topic of to_topics) {
-      if (topic.collect_time) continue
-      stack.push(topic)
-    }
+    let new_topics = storeTopic(lang_id, topic, links)
+    stack.push(...new_topics)
     cli.update(
       `uptime: ${format_time_duration(process.uptime() * 1000)}` +
         ` | stack: ${stack.length.toLocaleString()}` +
@@ -116,26 +113,27 @@ async function collectTopic(page: Page, task: Task) {
 let storeTopic = (lang_id: number, topic: Topic, links: Task[]) => {
   let from_topic_id = topic.id!
   topic.collect_time = Date.now()
-  let to_topics: Topic[] = links.map(link => {
-    if (link.slug == 'Wikipedia:Project_namespace') {
+  let new_topics: Topic[] = []
+  for (let link of links) {
+    let to_topic = find(proxy.topic, {
+      slug: link.slug,
+      lang_id,
+    })
+    if (to_topic) {
+      proxy.link.push({ from_topic_id, to_topic_id: to_topic.id! })
+      continue
     }
-    let to_topic =
-      find(proxy.topic, {
-        slug: link.slug,
-        lang_id,
-      }) ||
-      proxy.topic[
-        proxy.topic.push({
-          slug: link.slug,
-          title: link.title,
-          lang_id,
-          collect_time: null,
-        })
-      ]
-    proxy.link.push({ from_topic_id, to_topic_id: to_topic.id! })
-    return to_topic
-  })
-  return to_topics
+    let to_topic_id = proxy.topic.push({
+      slug: link.slug,
+      title: link.title,
+      lang_id,
+      collect_time: null,
+    })
+    to_topic = proxy.topic[to_topic_id]
+    new_topics.push(to_topic)
+    proxy.link.push({ from_topic_id, to_topic_id })
+  }
+  return new_topics
 }
 storeTopic = db.transaction(storeTopic)
 
