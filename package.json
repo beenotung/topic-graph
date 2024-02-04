@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "BSD-2-Clause",
   "devDependencies": {
     "@types/integer": "^4.0.1",
     "@types/node": "^20.11.5",
