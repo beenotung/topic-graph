@@ -141,6 +141,7 @@ function test() {
   // to = 'Great_man_theory'
   // to = 'Digital marketing'
   // to = 'Subset'
+  to = 'Yarn (package manager)'
   let result = findPath({
     from: findTopic(from),
     to: findTopic(to),
@@ -159,7 +160,7 @@ function test() {
           !item.link ||
           item.link.text.toLowerCase() == item.topic.title.toLowerCase()
             ? item.topic.title
-            : `${item.topic.title} (${item.link.text})`,
+            : `${item.topic.title} <${item.link.text}>`,
         )
         .join(' -> '),
     )
