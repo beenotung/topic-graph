@@ -1,10 +1,15 @@
+import { startTimer } from '@beenotung/tslib/timer'
 import { db } from './db'
 import { proxy } from './proxy'
+
+let prefix = 'Portal_talk'
+
+let timer = startTimer('init')
 
 let select_ids = db
   .prepare(
     /* sql */
-    `select id from topic where slug like 'User_talk:%'`,
+    `select id from topic where slug like '${prefix}:%'`,
   )
   .pluck()
 
@@ -19,16 +24,23 @@ let delete_sequence = db.prepare(
 )
 
 function removeTopic(id: number) {
-  let topic = proxy.topic[id]
-  console.log('delete topic:', { slug: topic.slug, title: topic.title })
   delete_link.run({ id })
   delete proxy.topic[id]
 }
 
-let ids = select_ids.all() as number[]
-for (let id of ids) {
-  removeTopic(id)
-}
+db.transaction(() => {
+  timer.next('scan non-topics')
+  let ids = select_ids.all() as number[]
+  timer.next('delete non-topics')
+  timer.setEstimateProgress(ids.length)
+  for (let id of ids) {
+    removeTopic(id)
+    timer.tick()
+  }
+})()
 
+timer.next('reset sequence')
 delete_sequence.run({ name: 'topic' })
 delete_sequence.run({ name: 'link' })
+
+timer.end()
