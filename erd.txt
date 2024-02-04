@@ -18,14 +18,17 @@
 lang
 ----
 id integer PK
+slug text unique
 name text
 
 
 topic
 -----
 id integer PK
+slug text unique
 title text
 lang_id integer FK >0- lang.id
+collect_time integer NULL
 
 
 link
@@ -45,4 +48,4 @@ to_topic_id integer FK >0- topic.id
 # table-text: #000000
 # lang (130, 281)
 # topic (384, 226)
-# link (647, 184)
+# link (718, 183)

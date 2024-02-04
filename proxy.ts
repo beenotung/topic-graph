@@ -3,14 +3,17 @@ import { db } from './db'
 
 export type Lang = {
   id?: null | number
+  slug: string
   name: string
 }
 
 export type Topic = {
   id?: null | number
+  slug: string
   title: string
   lang_id: number
   lang?: Lang
+  collect_time: null | number
 }
 
 export type Link = {
