@@ -58,7 +58,7 @@ async function main() {
       `uptime: ${format_time_duration(process.uptime() * 1000)}` +
         ` | stack: ${stack.length.toLocaleString()}` +
         ` | ${links.length.toLocaleString()} links` +
-        ` in topic: ${topic.title}`,
+        ` in topic: "${topic.title}"`,
     )
   }
 
