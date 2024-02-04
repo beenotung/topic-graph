@@ -45,7 +45,12 @@ async function main() {
   }
 
   let stack: Task[] = filter(proxy.topic, { lang_id, collect_time: null }).map(
-    topic => ({ topic, slug: findTopicSlug(topic) }),
+    topic => ({
+      topic,
+      get slug() {
+        return findTopicSlug(topic)
+      },
+    }),
   )
 
   let lastTime = Date.now()
