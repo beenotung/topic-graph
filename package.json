@@ -24,7 +24,20 @@
     "user interface",
     "web ui"
   ],
+  "author": {
+    "name": "Beeno Tung",
+    "email": "aabbcc1241@yahoo.com.hk",
+    "url": "https://beeno-tung.surge.sh"
+  },
   "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beenotung/topic-graph.git"
+  },
+  "homepage": "https://github.com/beenotung/topic-graph#readme",
+  "bugs": {
+    "url": "https://github.com/beenotung/topic-graph/issues"
+  },
   "main": "index.js",
   "scripts": {
     "test": "tsc --noEmit",
@@ -41,7 +54,6 @@
     "knex": "^3.1.0",
     "playwright": "^1.39.0"
   },
-  "author": "",
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
     "@types/integer": "^4.0.1",
