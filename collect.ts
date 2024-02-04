@@ -95,7 +95,7 @@ async function collectTopic(page: Page, task: Task) {
   let slug = task.slug
   let url_prefix = 'https://en.wikipedia.org/wiki/'
   let url = url_prefix + slug
-  await page.goto(url)
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
   let { links, href } = await page.evaluate(
     ({ slug }) => {
       let links: Link[] = Array.from(
