@@ -30,14 +30,16 @@ function findTopic(title: string) {
   return proxy.topic[id]
 }
 
-function findPath(
-  from: Topic,
-  to: Topic,
-): {
+function findPath(options: {
+  from: Topic
+  to: Topic
+  include_navigation_not_searchable?: boolean // default false
+}): {
   searched: number
   steps: number
   paths: Topic[][]
 } {
+  let { from, to, include_navigation_not_searchable } = options
   let searched = 0
   let paths: Topic[][] = []
   if (from.id == to.id) {
@@ -87,10 +89,14 @@ function findPath(
       // throw new Error('topic not collected: ' + from_topic.title)
     }
     let from_topic_id = from_topic.id!
-    let links = filter(proxy.link, {
-      from_topic_id,
-      navigation_not_searchable: false,
-    })
+    let links = include_navigation_not_searchable
+      ? filter(proxy.link, {
+          from_topic_id,
+        })
+      : filter(proxy.link, {
+          from_topic_id,
+          navigation_not_searchable: false,
+        })
     for (let link of links) {
       let to_topic_id = link.to_topic_id
       let to_topic = link.to_topic!
@@ -126,7 +132,11 @@ function test() {
   let to = 'Artificial intelligence'
   to = 'Design prototyping'
   // to = 'Great_man_theory'
-  let result = findPath(findTopic(from), findTopic(to))
+  let result = findPath({
+    from: findTopic(from),
+    to: findTopic(to),
+    // include_navigation_not_searchable: true,
+  })
   console.log({
     searched: result.searched,
     steps: result.steps,
