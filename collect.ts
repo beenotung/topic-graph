@@ -97,6 +97,7 @@ async function collectTopic(page: Page, task: Task) {
             link.slug.startsWith('Template_talk:') ||
             link.slug.startsWith('Module:') ||
             link.slug.startsWith('User:') ||
+            link.slug.startsWith('User_talk:') ||
             // link.slug.startsWith('Portal:') ||
             link.slug.startsWith('Special:')
           ),
