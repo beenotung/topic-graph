@@ -35,7 +35,7 @@ async function main() {
   let lastTime = Date.now()
 
   for (;;) {
-    let topic = stack.pop()
+    let topic = stack.shift()
     if (!topic) break
     let now = Date.now()
     let diff = now - lastTime
