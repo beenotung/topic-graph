@@ -1,8 +1,10 @@
 # Topic Graph
 
-A tool that collects links between Wikipedia topics and builds a graph network. It allows users to search for the shortest path between any two topics within the graph.
+Explore Wikipedia topics and their relationships through a graph-based network
 
 **Project Status**: prototyping, incomplete
+
+This is a FOSS tool that collects links between Wikipedia topics and builds a graph network. It allows users to search for the shortest path between any two topics within the graph.
 
 ## Functionality
 
