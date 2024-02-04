@@ -2,6 +2,28 @@
   "name": "topic-graph",
   "version": "1.0.0",
   "description": "",
+  "keywords": [
+    "Wikipedia",
+    "graph",
+    "network",
+    "web scraping",
+    "data collection",
+    "data visualization",
+    "shortest path",
+    "knowledge graph",
+    "knowledge discovery",
+    "search",
+    "information retrieval",
+    "data exploration",
+    "data analysis",
+    "TypeScript",
+    "Playwright",
+    "SQLite",
+    "database",
+    "CLI",
+    "user interface",
+    "web ui"
+  ],
   "main": "index.js",
   "scripts": {
     "test": "tsc --noEmit",
@@ -10,7 +32,6 @@
     "db:plan": "auto-migrate db.sqlite3 < erd.txt",
     "db:update": "knex migrate:latest && erd-to-proxy < erd.txt > proxy.ts"
   },
-  "keywords": [],
   "author": "",
   "license": "BSD-2-Clause",
   "devDependencies": {
