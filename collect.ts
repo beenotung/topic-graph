@@ -22,6 +22,7 @@ type Task = {
 type Link = {
   title: string
   slug: string
+  navigation_not_searchable: boolean
 }
 
 let cli = new ProgressCli()
@@ -96,7 +97,7 @@ async function collectTopic(page: Page, task: Task) {
   await page.goto(url)
   let { links, href } = await page.evaluate(
     ({ slug }) => {
-      let links = Array.from(
+      let links: Link[] = Array.from(
         document.querySelectorAll<HTMLAnchorElement>(
           '#bodyContent a[href*="/wiki/"][title]',
         ),
@@ -106,6 +107,7 @@ async function collectTopic(page: Page, task: Task) {
             ?.match(/^\/wiki\/(.*)$/)?.[1]
             .split('#')[0]!,
           title: a.title,
+          navigation_not_searchable: !!a.closest('.navigation-not-searchable'),
         }),
       )
       if (links.some(link => link.slug == 'Wikipedia:Project_namespace')) {
@@ -206,6 +208,7 @@ let storeTopic = (
       proxy.link.push({
         from_topic_id: from_topic.id!,
         to_topic_id: to_topic.id!,
+        navigation_not_searchable: link.navigation_not_searchable,
       })
   }
 

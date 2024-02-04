@@ -4,7 +4,10 @@ import { db } from './db'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
 
 function exploreTopic(topic: Topic) {
-  let links = filter(proxy.link, { from_topic_id: topic.id! })
+  let links = filter(proxy.link, {
+    from_topic_id: topic.id!,
+    navigation_not_searchable: false,
+  })
   console.log('from:', topic.title)
   console.log('to:')
   for (let link of links) {
@@ -49,7 +52,10 @@ function findPath(from: Topic, to: Topic): Topic[] {
       // throw new Error('topic not collected: ' + from_topic.title)
     }
     let from_topic_id = from_topic.id!
-    let links = filter(proxy.link, { from_topic_id })
+    let links = filter(proxy.link, {
+      from_topic_id,
+      navigation_not_searchable: false,
+    })
     for (let link of links) {
       let to_topic_id = link.to_topic_id
       let to_topic = link.to_topic!
