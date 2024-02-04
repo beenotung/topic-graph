@@ -138,8 +138,8 @@ async function collectTopic(page: Page, task: Task) {
   )
   let redirected_slug = href.replace(url_prefix, '').split('#')[0]
   if (redirected_slug != slug) {
+    cli.update(`topic slug redirected: "${slug}" -> "${redirected_slug}"`)
     cli.nextLine()
-    cli.writeln(`topic slug redirected: "${slug}" -> "${redirected_slug}"`)
   }
   return { links, redirected_slug }
 }
