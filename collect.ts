@@ -91,11 +91,29 @@ async function main() {
   await browser.close()
 }
 
+async function goto(page: Page, url: string) {
+  for (;;) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded' })
+      return
+    } catch (error) {
+      let message = String(error)
+      if (message.match(/timeout/i)) {
+        console.log(error)
+        console.log('retry after 5 seconds...')
+        await later(5000)
+        continue
+      }
+      throw error
+    }
+  }
+}
+
 async function collectTopic(page: Page, task: Task) {
   let slug = task.slug
   let url_prefix = 'https://en.wikipedia.org/wiki/'
   let url = url_prefix + slug
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await goto(page, url)
   let { links, href } = await page.evaluate(
     ({ slug }) => {
       let links: Link[] = Array.from(
