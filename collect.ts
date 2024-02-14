@@ -1,4 +1,4 @@
-import { Page, chromium } from 'playwright'
+import { Browser, Page, chromium } from 'playwright'
 import { Topic, proxy } from './proxy'
 import {
   count,
@@ -28,9 +28,15 @@ type Link = {
 
 let cli = new ProgressCli()
 
+type Context = {
+  browser: Browser
+  page: Page
+}
+
 async function main() {
   let browser = await chromium.launch({ headless: true })
   let page = await browser.newPage()
+  let context: Context = { browser, page }
 
   let lang_id =
     find(proxy.lang, { slug: 'en' })?.id ||
@@ -65,7 +71,7 @@ async function main() {
     if (diff < collect_interval) {
       await later(collect_interval - diff)
     }
-    let { links, redirected_slug } = await collectTopic(page, task)
+    let { links, redirected_slug } = await collectTopic(context, task)
     lastTime = Date.now()
     if (links.length == 0) {
       cli.nextLine()
@@ -91,22 +97,21 @@ async function main() {
   await browser.close()
 }
 
-async function goto(page: Page, url: string) {
+async function goto(context: Context, url: string) {
   for (;;) {
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded' })
-      return page
+      await context.page.goto(url, { waitUntil: 'domcontentloaded' })
+      return
     } catch (error) {
       let message = String(error)
-      if (message.match(/timeout/i)) {
+      let timeout = message.match(/timeout/i)
+      let crashed = message.match(/page crashed/i)
+      if (timeout || crashed) {
         await logAndRetry(error)
-        continue
-      }
-      if (message.match(/page crashed/i)) {
-        let context = page.context()
-        await page.close()
-        page = await context.newPage()
-        await logAndRetry(error)
+        if (crashed) {
+          await context.page.close()
+          context.page = await context.browser.newPage()
+        }
         continue
       }
       throw error
@@ -120,12 +125,12 @@ async function logAndRetry(error: unknown) {
   await later(5000)
 }
 
-async function collectTopic(page: Page, task: Task) {
+async function collectTopic(context: Context, task: Task) {
   let slug = task.slug
   let url_prefix = 'https://en.wikipedia.org/wiki/'
   let url = url_prefix + slug
-  page = await goto(page, url)
-  let { links, href } = await page.evaluate(
+  await goto(context, url)
+  let { links, href } = await context.page.evaluate(
     ({ slug }) => {
       let links: Link[] = Array.from(
         document.querySelectorAll<HTMLAnchorElement>(
