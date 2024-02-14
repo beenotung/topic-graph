@@ -104,11 +104,12 @@ async function goto(context: Context, url: string) {
       return
     } catch (error) {
       let message = String(error)
-      let timeout = message.match(/timeout/i)
-      let crashed = message.match(/page crashed/i)
-      if (timeout || crashed) {
+      let should_retry =
+        message.match(/timeout/i) || message.match(/ERR_NETWORK_CHANGED/i)
+      let should_restart = message.match(/page crashed/i)
+      if (should_retry || should_restart) {
         await logAndRetry(error)
-        if (crashed) {
+        if (should_restart) {
           await context.page.close()
           context.page = await context.browser.newPage()
         }
