@@ -98,7 +98,7 @@ async function goto(page: Page, url: string) {
       return
     } catch (error) {
       let message = String(error)
-      if (message.match(/timeout/i)) {
+      if (message.match(/timeout/i) || message.match(/page crashed/i)) {
         console.log(error)
         console.log('retry after 5 seconds...')
         await later(5000)
