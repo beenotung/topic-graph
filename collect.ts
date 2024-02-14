@@ -95,13 +95,18 @@ async function goto(page: Page, url: string) {
   for (;;) {
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded' })
-      return
+      return page
     } catch (error) {
       let message = String(error)
-      if (message.match(/timeout/i) || message.match(/page crashed/i)) {
-        console.log(error)
-        console.log('retry after 5 seconds...')
-        await later(5000)
+      if (message.match(/timeout/i)) {
+        await logAndRetry(error)
+        continue
+      }
+      if (message.match(/page crashed/i)) {
+        let context = page.context()
+        await page.close()
+        page = await context.newPage()
+        await logAndRetry(error)
         continue
       }
       throw error
@@ -109,11 +114,17 @@ async function goto(page: Page, url: string) {
   }
 }
 
+async function logAndRetry(error: unknown) {
+  console.log(error)
+  console.log('retry after 5 seconds...')
+  await later(5000)
+}
+
 async function collectTopic(page: Page, task: Task) {
   let slug = task.slug
   let url_prefix = 'https://en.wikipedia.org/wiki/'
   let url = url_prefix + slug
-  await goto(page, url)
+  page = await goto(page, url)
   let { links, href } = await page.evaluate(
     ({ slug }) => {
       let links: Link[] = Array.from(
