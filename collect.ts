@@ -108,22 +108,18 @@ async function goto(context: Context, url: string) {
         message.match(/timeout/i) || message.match(/ERR_NETWORK_CHANGED/i)
       let should_restart = message.match(/page crashed/i)
       if (should_retry || should_restart) {
-        await logAndRetry(error)
+        console.log(error)
         if (should_restart) {
           await context.page.close()
           context.page = await context.browser.newPage()
         }
+        console.log('retry after 5 seconds...')
+        await later(5000)
         continue
       }
       throw error
     }
   }
-}
-
-async function logAndRetry(error: unknown) {
-  console.log(error)
-  console.log('retry after 5 seconds...')
-  await later(5000)
 }
 
 async function collectTopic(context: Context, task: Task) {
