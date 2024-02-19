@@ -12,6 +12,7 @@ import { db } from './db'
 import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
 import { format_time_duration } from '@beenotung/tslib/format'
+import { GracefulPage } from 'graceful-playwright'
 
 const collect_interval = 1000
 
@@ -28,15 +29,9 @@ type Link = {
 
 let cli = new ProgressCli()
 
-type Context = {
-  browser: Browser
-  page: Page
-}
-
 async function main() {
   let browser = await chromium.launch({ headless: true })
-  let page = await browser.newPage()
-  let context: Context = { browser, page }
+  let page = new GracefulPage({ from: browser })
 
   let lang_id =
     find(proxy.lang, { slug: 'en' })?.id ||
@@ -71,7 +66,7 @@ async function main() {
     if (diff < collect_interval) {
       await later(collect_interval - diff)
     }
-    let { links, redirected_slug } = await collectTopic(context, task)
+    let { links, redirected_slug } = await collectTopic(page, task)
     lastTime = Date.now()
     if (links.length == 0) {
       cli.nextLine()
@@ -97,37 +92,12 @@ async function main() {
   await browser.close()
 }
 
-async function goto(context: Context, url: string) {
-  for (;;) {
-    try {
-      await context.page.goto(url, { waitUntil: 'domcontentloaded' })
-      return
-    } catch (error) {
-      let message = String(error)
-      let should_retry =
-        message.match(/timeout/i) || message.match(/ERR_NETWORK_CHANGED/i)
-      let should_restart = message.match(/page crashed/i)
-      if (should_retry || should_restart) {
-        console.log(error)
-        if (should_restart) {
-          await context.page.close()
-          context.page = await context.browser.newPage()
-        }
-        console.log('retry after 5 seconds...')
-        await later(5000)
-        continue
-      }
-      throw error
-    }
-  }
-}
-
-async function collectTopic(context: Context, task: Task) {
+async function collectTopic(page: GracefulPage, task: Task) {
   let slug = task.slug
   let url_prefix = 'https://en.wikipedia.org/wiki/'
   let url = url_prefix + slug
-  await goto(context, url)
-  let { links, href } = await context.page.evaluate(
+  await page.goto(url)
+  let { links, href } = await page.evaluate(
     ({ slug }) => {
       let links: Link[] = Array.from(
         document.querySelectorAll<HTMLAnchorElement>(
