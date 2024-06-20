@@ -25,6 +25,7 @@ type Link = {
   slug: string
   text: string
   navigation_not_searchable: boolean
+  redirect_text: boolean
 }
 
 let cli = new ProgressCli()
@@ -70,7 +71,7 @@ async function main() {
     lastTime = Date.now()
     if (links.length == 0) {
       cli.nextLine()
-      console.error('Error: no links found, topic:', unProxy(task))
+      console.error('Error: no links found, topic:', unProxy(task.topic))
       throw new Error('no links found')
     }
     let newTasks = storeTopic(lang_id, task, redirected_slug, links)
@@ -115,6 +116,7 @@ async function collectTopic(page: GracefulPage, task: Task) {
             navigation_not_searchable: !!a.closest(
               '.navigation-not-searchable',
             ),
+            redirect_text: !!a.closest('.redirectText'),
           }
         },
       ).filter(link => link.rect.width * link.rect.height > 0)
@@ -146,7 +148,43 @@ async function collectTopic(page: GracefulPage, task: Task) {
     },
     { slug: slug },
   )
+  if (links.length == 0) {
+    await later(1000)
+    href = await page.evaluate(() => location.href)
+  }
   let redirected_slug = href.replace(url_prefix, '').split('#')[0]
+  // e.g. "https://en.wikipedia.org/w/index.php?title=One_person,_one_vote&redirect=no"
+  if (href.startsWith('https://en.wikipedia.org/w/index.php?')) {
+    links = await page.evaluate(() => {
+      return Array.from(
+        document.querySelectorAll<HTMLAnchorElement>(
+          '.redirectMsg .redirectText a',
+        ),
+        a => {
+          let href = a.getAttribute('href')
+          let slug = href?.match(/^\/wiki\/(.*)$/)?.[1].split('#')[0]!
+          let title = new URL(a.href).searchParams.get('title')
+          if (!slug && !title) {
+            throw new Error('slug not found, href: ' + href)
+          }
+          return {
+            slug: slug || title!,
+            title: a.title,
+            text: a.innerText,
+            rect: a.getBoundingClientRect(),
+            navigation_not_searchable: !!a.closest(
+              '.navigation-not-searchable',
+            ),
+            redirect_text: true,
+          }
+        },
+      )
+    })
+  }
+  let redirect_links = links.filter(link => link.redirect_text)
+  if (redirect_links.length == 1) {
+    redirected_slug = redirect_links[0].slug
+  }
   return { links, redirected_slug }
 }
 
