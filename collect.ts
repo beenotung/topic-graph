@@ -16,6 +16,8 @@ import { GracefulPage } from 'graceful-playwright'
 
 const collect_interval = 1000
 
+let known_no_link_topics = ['Asthma and Allergy Foundation of America']
+
 type Task = {
   topic: Topic
   slug: string
@@ -69,7 +71,7 @@ async function main() {
     }
     let { links, redirected_slug } = await collectTopic(page, task)
     lastTime = Date.now()
-    if (links.length == 0) {
+    if (links.length == 0 && !known_no_link_topics.includes(task.topic.title)) {
       cli.nextLine()
       console.error('Error: no links found, topic:', unProxy(task.topic))
       throw new Error('no links found')
