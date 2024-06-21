@@ -1,13 +1,6 @@
-import { Browser, Page, chromium } from 'playwright'
+import { chromium } from 'playwright'
 import { Topic, proxy } from './proxy'
-import {
-  count,
-  filter,
-  find,
-  notNull,
-  unProxy,
-  update,
-} from 'better-sqlite3-proxy'
+import { count, filter, find, notNull, unProxy } from 'better-sqlite3-proxy'
 import { db } from './db'
 import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
@@ -15,8 +8,6 @@ import { format_time_duration } from '@beenotung/tslib/format'
 import { GracefulPage } from 'graceful-playwright'
 
 const collect_interval = 1000
-
-let known_no_link_topics = ['Asthma and Allergy Foundation of America']
 
 type Task = {
   topic: Topic
@@ -71,14 +62,22 @@ async function main() {
     }
     let { links, redirected_slug } = await collectTopic(page, task)
     lastTime = Date.now()
-    if (links.length == 0 && !known_no_link_topics.includes(task.topic.title)) {
+    if (links.length == 0) {
       cli.nextLine()
       console.error('Error: no links found, topic:', unProxy(task.topic))
-      throw new Error('no links found')
+      // throw new Error('no links found')
+      find(proxy.no_link_topic, { topic_id: task.topic.id! }) ||
+        proxy.no_link_topic.push({
+          topic_id: task.topic.id!,
+          discover_time: Date.now(),
+          confirm_time: null,
+        })
+    } else {
+      let newTasks = storeTopic(lang_id, task, redirected_slug, links)
+      stack.push(...newTasks)
     }
-    let newTasks = storeTopic(lang_id, task, redirected_slug, links)
-    stack.push(...newTasks)
-    let collected = count(proxy.topic, { collect_time: notNull })
+    let collected =
+      count(proxy.topic, { collect_time: notNull }) + proxy.no_link_topic.length
     let pending = stack.length
     let progress = (collected / (collected + pending)) * 100
     cli.update(

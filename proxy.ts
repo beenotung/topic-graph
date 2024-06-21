@@ -32,11 +32,20 @@ export type Link = {
   navigation_not_searchable: boolean
 }
 
+export type NoLinkTopic = {
+  id?: null | number
+  topic_id: number
+  topic?: Topic
+  discover_time: number
+  confirm_time: null | number
+}
+
 export type DBProxy = {
   lang: Lang[]
   topic: Topic[]
   topic_slug: TopicSlug[]
   link: Link[]
+  no_link_topic: NoLinkTopic[]
 }
 
 export let proxy = proxySchema<DBProxy>({
@@ -55,6 +64,10 @@ export let proxy = proxySchema<DBProxy>({
       /* foreign references */
       ['from_topic', { field: 'from_topic_id', table: 'topic' }],
       ['to_topic', { field: 'to_topic_id', table: 'topic' }],
+    ],
+    no_link_topic: [
+      /* foreign references */
+      ['topic', { field: 'topic_id', table: 'topic' }],
     ],
   },
 })
