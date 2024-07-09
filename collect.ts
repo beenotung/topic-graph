@@ -311,8 +311,9 @@ delete from link where id in (select id from list2)
 `)
 
 let mergeTopic = (from: Topic, to: Topic) => {
-  cli.update(`merge topic "${from.title}" -> "${to.title}"`)
-  cli.nextLine()
+  // cli.nextLine()
+  // cli.update(`merge topic "${from.title}" -> "${to.title}"`)
+  // cli.nextLine()
 
   delete_duplicated_from_link.run({ old_id: from.id, new_id: to.id })
   delete_duplicated_to_link.run({ old_id: from.id, new_id: to.id })
