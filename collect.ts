@@ -121,13 +121,17 @@ async function collectTopic(page: GracefulPage, task: Task) {
           }
         },
       ).filter(link => link.rect.width * link.rect.height > 0)
-      if (links.some(link => link.slug == 'Wikipedia:Project_namespace')) {
+      if (
+        links.some(link => link.slug == 'Wikipedia:Project_namespace') &&
+        slug != 'Wikipedia_(disambiguation)'
+      ) {
         throw new Error(`unexpected link, task.slug: ${slug}`)
       }
       links = links.filter(
         link =>
           link.slug &&
           !(
+            link.slug == 'Wikipedia:Project_namespace' ||
             link.slug.startsWith('Wikipedia:') ||
             link.slug.startsWith('Category:') ||
             link.slug.startsWith('Help:') ||
