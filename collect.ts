@@ -1,11 +1,19 @@
 import { chromium } from 'playwright'
 import { Topic, proxy } from './proxy'
-import { count, filter, find, notNull, unProxy } from 'better-sqlite3-proxy'
+import {
+  count,
+  filter,
+  find,
+  notNull,
+  unProxy,
+  clearCache,
+} from 'better-sqlite3-proxy'
 import { db } from './db'
 import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
 import { format_time_duration } from '@beenotung/tslib/format'
 import { GracefulPage } from 'graceful-playwright'
+import { HOUR } from '@beenotung/tslib/time'
 
 const collect_interval = 1000
 
@@ -26,6 +34,10 @@ let cli = new ProgressCli()
 async function main() {
   let browser = await chromium.launch({ headless: true })
   let page = new GracefulPage({ from: browser })
+
+  setInterval(() => {
+    clearCache(proxy)
+  }, 1 * HOUR)
 
   let lang_id =
     find(proxy.lang, { slug: 'en' })?.id ||
