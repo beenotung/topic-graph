@@ -135,6 +135,7 @@ async function collectTopic(page: GracefulPage, task: Task) {
       ).filter(link => link.rect.width * link.rect.height > 0)
       if (
         links.some(link => link.slug == 'Wikipedia:Project_namespace') &&
+        slug != 'Wikify' &&
         slug != 'Japanese_Wikipedia' &&
         slug != 'Wikipedia_(disambiguation)'
       ) {
