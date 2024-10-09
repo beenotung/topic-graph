@@ -13,6 +13,8 @@ export type Topic = {
   lang_id: number
   lang?: Lang
   collect_time: null | number
+  out_link_count: null | number
+  in_link_count: null | number
 }
 
 export type TopicSlug = {

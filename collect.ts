@@ -49,6 +49,8 @@ async function main() {
       title: 'TypeScript',
       lang_id,
       collect_time: null,
+      out_link_count: null,
+      in_link_count: null,
     })
     proxy.topic_slug.push({ topic_id, slug: 'TypeScript' })
   }
@@ -256,22 +258,29 @@ let storeTopic = (
         title: link.title,
         lang_id,
         collect_time: null,
+        out_link_count: null,
+        in_link_count: null,
       })
       proxy.topic_slug.push({ topic_id: to_topic_id, slug: link.slug })
       to_topic = proxy.topic[to_topic_id]
       newTasks.push({ topic: to_topic, slug: link.slug })
     }
 
-    find(proxy.link, {
+    let has_link = count(proxy.link, {
       from_topic_id: from_topic.id!,
       to_topic_id: to_topic.id!,
-    }) ||
-      proxy.link.push({
-        from_topic_id: from_topic.id!,
-        to_topic_id: to_topic.id!,
-        text: link.text,
-        navigation_not_searchable: link.navigation_not_searchable,
-      })
+    })
+    if (has_link) {
+      continue
+    }
+    proxy.link.push({
+      from_topic_id: from_topic.id!,
+      to_topic_id: to_topic.id!,
+      text: link.text,
+      navigation_not_searchable: link.navigation_not_searchable,
+    })
+    from_topic.out_link_count = (from_topic.out_link_count || 0) + 1
+    to_topic.in_link_count = (to_topic.in_link_count || 0) + 1
   }
 
   from_topic.collect_time = Date.now()
