@@ -13,9 +13,10 @@ import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
 import { format_time_duration } from '@beenotung/tslib/format'
 import { GracefulPage } from 'graceful-playwright'
-import { HOUR } from '@beenotung/tslib/time'
+import { MINUTE } from '@beenotung/tslib/time'
 
 const collect_interval = 1000
+const clear_cache_interval = 30 * MINUTE
 
 type Task = {
   topic: Topic
@@ -37,7 +38,7 @@ async function main() {
 
   setInterval(() => {
     clearCache(proxy)
-  }, 1 * HOUR)
+  }, clear_cache_interval)
 
   let lang_id =
     find(proxy.lang, { slug: 'en' })?.id ||
