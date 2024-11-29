@@ -1,13 +1,6 @@
 import { chromium } from 'playwright'
-import { Topic, proxy } from './proxy'
-import {
-  count,
-  filter,
-  find,
-  notNull,
-  unProxy,
-  clearCache,
-} from 'better-sqlite3-proxy'
+import { proxy } from './proxy'
+import { count, find, notNull, unProxy, clearCache } from 'better-sqlite3-proxy'
 import { db } from './db'
 import { later } from '@beenotung/tslib/async/wait'
 import { ProgressCli } from '@beenotung/tslib/progress-cli'
@@ -19,7 +12,7 @@ const collect_interval = 1000
 const clear_cache_interval = 30 * MINUTE
 
 type Task = {
-  topic: Topic
+  topic_id: number
   slug: string
 }
 type Link = {
@@ -31,6 +24,27 @@ type Link = {
 }
 
 let cli = new ProgressCli()
+
+let select_pending_task = db
+  .prepare<{ lang_id: number }, number>(
+    /* sql */ `
+select id
+from topic
+where lang_id = :lang_id
+  and collect_time is null
+`,
+  )
+  .pluck()
+
+let select_topic_title = db
+  .prepare<{ topic_id: number }, string>(
+    /* sql */ `
+select title
+from topic
+where id = :topic_id
+`,
+  )
+  .pluck()
 
 async function main() {
   let browser = await chromium.launch({ headless: true })
@@ -44,8 +58,8 @@ async function main() {
     find(proxy.lang, { slug: 'en' })?.id ||
     proxy.lang.push({ slug: 'en', name: 'English' })
 
-  let seedTopic = findTopicBySlug('TypeScript')
-  if (!seedTopic) {
+  let topic_id = select_topic_id_by_slug.get({ slug: 'TypeScript' })
+  if (!topic_id) {
     let topic_id = proxy.topic.push({
       title: 'TypeScript',
       lang_id,
@@ -54,20 +68,19 @@ async function main() {
     proxy.topic_slug.push({ topic_id, slug: 'TypeScript' })
   }
 
-  let stack: Task[] = filter(proxy.topic, { lang_id, collect_time: null }).map(
-    topic => ({
-      topic,
-      get slug() {
-        return findTopicSlug(topic)
-      },
-    }),
-  )
+  let stack: Task[] = select_pending_task.all({ lang_id }).map(topic_id => ({
+    topic_id,
+    get slug() {
+      return findTopicSlug(topic_id)
+    },
+  }))
 
   let lastTime = Date.now()
 
   for (;;) {
     let task = stack.shift()
     if (!task) break
+    let topic_title = select_topic_title.get({ topic_id: task.topic_id })
     let now = Date.now()
     let diff = now - lastTime
     if (diff < collect_interval) {
@@ -77,11 +90,14 @@ async function main() {
     lastTime = Date.now()
     if (links.length == 0) {
       cli.nextLine()
-      console.error('Error: no links found, topic:', unProxy(task.topic))
+      console.error(
+        'Error: no links found, topic:',
+        unProxy(proxy.topic[task.topic_id]),
+      )
       // throw new Error('no links found')
-      find(proxy.no_link_topic, { topic_id: task.topic.id! }) ||
+      find(proxy.no_link_topic, { topic_id: task.topic_id }) ||
         proxy.no_link_topic.push({
-          topic_id: task.topic.id!,
+          topic_id: task.topic_id,
           discover_time: Date.now(),
           confirm_time: null,
         })
@@ -99,7 +115,7 @@ async function main() {
         ` | pending: ${pending.toLocaleString()}` +
         ` | progress: ${progress.toFixed(2)}%` +
         ` | ${links.length.toLocaleString()} links` +
-        ` in topic: "${task.topic.title}"`,
+        ` in topic: "${topic_title}"`,
     )
   }
 
@@ -208,12 +224,18 @@ async function collectTopic(page: GracefulPage, task: Task) {
   return { links, redirected_slug }
 }
 
-function findTopicBySlug(slug: string) {
-  return find(proxy.topic_slug, { slug })?.topic
-}
+let select_topic_id_by_slug = db
+  .prepare<{ slug: string }, number>(
+    /* sql */ `
+select topic_id
+from topic_slug
+where slug = :slug
+`,
+  )
+  .pluck()
 
 let select_topic_slug = db
-  .prepare(
+  .prepare<{ topic_id: number }, string>(
     /* sql */ `
 select slug from topic_slug
 where topic_id = :topic_id
@@ -223,11 +245,25 @@ limit 1
   )
   .pluck()
 
-function findTopicSlug(topic: Topic) {
-  let slug = select_topic_slug.get({ topic_id: topic.id! }) as string
-  if (!slug) throw new Error(`topic slug not found, title: ${topic.title}`)
+function findTopicSlug(topic_id: number) {
+  let slug = select_topic_slug.get({ topic_id })
+  if (!slug) {
+    throw new Error(
+      `topic slug not found, title: ${proxy.topic[topic_id].title}`,
+    )
+  }
   return slug
 }
+
+let select_link = db.prepare<
+  { from_topic_id: number; to_topic_id: number },
+  number
+>(/* sql */ `
+select id
+from link
+where from_topic_id = :from_topic_id
+  and to_topic_id = :to_topic_id
+`)
 
 let storeTopic = (
   lang_id: number,
@@ -235,47 +271,47 @@ let storeTopic = (
   redirected_slug: string,
   links: Link[],
 ) => {
-  let from_topic = task.topic
+  let from_topic_id = task.topic_id
 
   if (task.slug !== redirected_slug) {
-    let existing_topic = findTopicBySlug(redirected_slug)
-    if (existing_topic && existing_topic.id !== from_topic.id) {
-      mergeTopic(from_topic, existing_topic)
-      from_topic = existing_topic
+    let existing_topic_id = select_topic_id_by_slug.get({
+      slug: redirected_slug,
+    })
+    if (existing_topic_id && existing_topic_id !== from_topic_id) {
+      mergeTopic(from_topic_id, existing_topic_id)
+      from_topic_id = existing_topic_id
     }
-    if (!existing_topic) {
-      proxy.topic_slug.push({ topic_id: from_topic.id!, slug: redirected_slug })
+    if (!existing_topic_id) {
+      proxy.topic_slug.push({ topic_id: from_topic_id, slug: redirected_slug })
     }
   }
 
   let newTasks: Task[] = []
   for (let link of links) {
-    let to_topic = findTopicBySlug(link.slug)
-
-    if (!to_topic) {
-      let to_topic_id = proxy.topic.push({
+    let to_topic_id = select_topic_id_by_slug.get({ slug: link.slug })
+    if (!to_topic_id) {
+      to_topic_id = proxy.topic.push({
         title: link.title,
         lang_id,
         collect_time: null,
       })
       proxy.topic_slug.push({ topic_id: to_topic_id, slug: link.slug })
-      to_topic = proxy.topic[to_topic_id]
-      newTasks.push({ topic: to_topic, slug: link.slug })
+      newTasks.push({ topic_id: to_topic_id, slug: link.slug })
     }
 
-    find(proxy.link, {
-      from_topic_id: from_topic.id!,
-      to_topic_id: to_topic.id!,
+    select_link.get({
+      from_topic_id,
+      to_topic_id,
     }) ||
       proxy.link.push({
-        from_topic_id: from_topic.id!,
-        to_topic_id: to_topic.id!,
+        from_topic_id,
+        to_topic_id,
         text: link.text,
         navigation_not_searchable: link.navigation_not_searchable,
       })
   }
 
-  from_topic.collect_time = Date.now()
+  proxy.topic[from_topic_id].collect_time = Date.now()
 
   return newTasks
 }
@@ -329,19 +365,19 @@ with list1 as (
 delete from link where id in (select id from list2)
 `)
 
-let mergeTopic = (from: Topic, to: Topic) => {
+let mergeTopic = (old_id: number, new_id: number) => {
   // cli.nextLine()
   // cli.update(`merge topic "${from.title}" -> "${to.title}"`)
   // cli.nextLine()
 
-  delete_duplicated_from_link.run({ old_id: from.id, new_id: to.id })
-  delete_duplicated_to_link.run({ old_id: from.id, new_id: to.id })
+  delete_duplicated_from_link.run({ old_id, new_id })
+  delete_duplicated_to_link.run({ old_id, new_id })
 
-  update_slug.run({ old_id: from.id, new_id: to.id })
-  update_from_link.run({ old_id: from.id, new_id: to.id })
-  update_to_link.run({ old_id: from.id, new_id: to.id })
+  update_slug.run({ old_id, new_id })
+  update_from_link.run({ old_id, new_id })
+  update_to_link.run({ old_id, new_id })
 
-  delete proxy.topic[from.id!]
+  delete proxy.topic[old_id]
 }
 mergeTopic = db.transaction(mergeTopic)
 
