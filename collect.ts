@@ -377,6 +377,19 @@ let mergeTopic = (old_id: number, new_id: number) => {
   update_from_link.run({ old_id, new_id })
   update_to_link.run({ old_id, new_id })
 
+  let old_no_link = find(proxy.no_link_topic, { topic_id: old_id })
+  let new_no_link = find(proxy.no_link_topic, { topic_id: new_id })
+  if (old_no_link && new_no_link) {
+    // combine them, then delete the old one
+    new_no_link.confirm_time ||= old_no_link.confirm_time
+    delete proxy.no_link_topic[old_no_link.id!]
+  } else if (old_no_link && !new_no_link) {
+    // rename the old topic to new topic
+    old_no_link.topic_id = new_id
+  } else if (!old_no_link && new_no_link) {
+    // no need to do anything
+  }
+
   delete proxy.topic[old_id]
 }
 mergeTopic = db.transaction(mergeTopic)
